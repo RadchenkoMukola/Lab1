@@ -1,91 +1,88 @@
+//package a;
+
 import javax.swing.*;
 
-class myThread extends Thread {
-    int inc = 0;
-    public myThread(int inc){
-        this.inc = inc;
+class Slide extends JSlider {
+    public Slide() {
+        super(0,100);
+    }
+
+    synchronized public void Increase(int increment){
+        setValue((int)getValue() + increment);
+    }
+}
+
+class MyThread extends Thread {
+    private int increment;
+    private Slide mySlider;
+    private int count;
+    private static int BOUND = 1000000;
+    private static int THREAD_COUNTER = 0;
+    private int curNum;
+
+    public MyThread(Slide mySlider, int increment, int priority) {
+        this.mySlider = mySlider;
+        this.increment = increment;
+        curNum = ++THREAD_COUNTER;
+        setPriority(priority);
     }
 
     @Override
-    public void run(){
-        while(Main.SEMAPHORE != 0);
-        Main.SEMAPHORE = 1;
-        Main.lbl1.setText("Розділ занятий");
-        while(!interrupted()) {
-            int val = Main.Slider.getValue();
-            if((val > 10 && inc < 0) || (val < 90 && inc > 0))
-                Main.Slider.setValue(val + inc);
+    public void run() {
+        while(!interrupted()){
+            int val = (int)(mySlider.getValue());
+            ++count;
+            if(count > BOUND){
+                mySlider.Increase(increment);
+                count = 0;
+            }
         }
-        Main.SEMAPHORE = 0;
-        Main.lbl1.setText("Розділ Вільний");
+    }
+    public JPanel GetJPanel() {
+        JPanel panel = new JPanel();
+        JLabel label = new JLabel("Потік #" + curNum + ", Приорітет = " + increment);
+        SpinnerModel sModel = new SpinnerNumberModel(getPriority(), Thread.MIN_PRIORITY, Thread.MAX_PRIORITY, 1);
+        JSpinner Spinner = new JSpinner(sModel);
+        Spinner.addChangeListener(e->{setPriority((int)(Spinner.getValue()));});
+        panel.add(Spinner);
+        panel.add(label);
+        return panel;
     }
 }
 
 public class Main {
-    static volatile int SEMAPHORE = 0;
-    static volatile JSlider Slider;
-    static volatile JTextField lbl1;
-    static private myThread Tthread1;
-    static private myThread TThread2;
-    static private JButton Tthread1STARTBTTN;
-    static private JButton TThread2STARTBTTN;
-    static private JButton Tthread1STOPBTTN;
-    static private JButton TThread2STOPBTTN;
-
+    public static int SEMAPHORE = 0;
+    static Thread T1, T2;
     public static void main(String[] args) {
-        JFrame Lab1_DP = new JFrame();
-        Lab1_DP.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        Lab1_DP.setSize(600,500);
-        JPanel Lab1_DPPanel = new JPanel();
-        Lab1_DPPanel.setLayout(new BoxLayout(Lab1_DPPanel, BoxLayout.Y_AXIS));
+        JFrame MyFrame = new JFrame();
+        MyFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        MyFrame.setSize(600, 300);
+        Slide MySlider = new Slide();
 
-        Slider = new JSlider(0,100);
-        Lab1_DPPanel.add(Slider);
-        lbl1 = new JTextField("Розділ Вільний");
-        Lab1_DPPanel.add(lbl1);
+        MyThread Thread1 = new MyThread(MySlider, +1, Thread.NORM_PRIORITY);
 
-        JPanel Tthread1Panel = new JPanel();
-        Tthread1STARTBTTN = new JButton("Старт1");
-        Tthread1STOPBTTN = new JButton("Стоп1");
-        Tthread1STOPBTTN.setEnabled(false);
-        Tthread1STARTBTTN.addActionListener(e -> {
-            Tthread1 = new myThread(+1);
-            Tthread1.setPriority(Thread.MIN_PRIORITY);
-            Tthread1STOPBTTN.setEnabled(true);
-            Tthread1STARTBTTN.setEnabled(false);
-            Tthread1.start();
+        MyThread Thread2 = new MyThread(MySlider, -1, Thread.NORM_PRIORITY);
+
+        JButton startBTN = new JButton("Старт");
+        startBTN.addActionListener(e -> {
+            Thread1.start();
+            Thread2.start();
+            startBTN.setEnabled(false);
+
         });
-        Tthread1STOPBTTN.addActionListener(e -> {
-            Tthread1.interrupt();
-            Tthread1STOPBTTN.setEnabled(false);
-            Tthread1STARTBTTN.setEnabled(true);
-        });
-        Tthread1Panel.add(Tthread1STARTBTTN);
-        Tthread1Panel.add(Tthread1STOPBTTN);
+        JPanel MyPanel = new JPanel();
+        MyPanel.setLayout(new BoxLayout(MyPanel, BoxLayout.Y_AXIS));
 
-        JPanel TThread2Panel = new JPanel();
-        TThread2STARTBTTN = new JButton ("Старт2");
-        TThread2STOPBTTN = new JButton("Стоп2");
-        TThread2STOPBTTN.setEnabled(false);
-        TThread2STARTBTTN.addActionListener(e-> {
-            TThread2 = new myThread(-1);
-            TThread2.setPriority(Thread.MAX_PRIORITY);
-            TThread2STOPBTTN.setEnabled(true);
-            TThread2STARTBTTN.setEnabled(false);
-            TThread2.start();
-        });
-        TThread2STOPBTTN.addActionListener(e-> {
-            TThread2.interrupt();
-            TThread2STOPBTTN.setEnabled(false);
-            TThread2STARTBTTN.setEnabled(true);
-        });
-        TThread2Panel.add(TThread2STARTBTTN);
-        TThread2Panel.add(TThread2STOPBTTN);
+        MyPanel.add(MySlider);
+        MyPanel.add(Thread1.GetJPanel());
+        MyPanel.add(Thread2.GetJPanel());
 
-        Lab1_DPPanel.add(Tthread1Panel);
-        Lab1_DPPanel.add(TThread2Panel);
+        JPanel jPanel = new JPanel();
+        jPanel.add(startBTN);
+        MyPanel.add(jPanel);
 
-        Lab1_DP.setContentPane(Lab1_DPPanel);
-        Lab1_DP.setVisible(true);
+        MyFrame.setContentPane(MyPanel);
+        MyFrame.setVisible(true);
+
     }
 }
